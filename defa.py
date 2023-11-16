@@ -1,79 +1,34 @@
-import pandas as pd
 import streamlit as st
+import re
+import os
 
-# Load data from CSV file
-df = pd.read_csv("alumi.csv")
-def intro():
-    import streamlit as st
-    st.write("# Data Alumi SMK Karya Bangsa")
-    st.sidebar.success("Silahkan Pilih.")
-    st.markdown(
-        ###
-        
-    )
-    
-st.write(df)
-# Count number of students who are already working
-num_working = df[df["Apakah sudah bekerja"] == "Ya"]["Nama Siswa"].count()
+def update_static_references(file_content, directory_name, new_directory_name):
+    # Define the regex pattern with the directory name provided by the user
+    pattern = rf'({re.escape(directory_name)})/([\w\-./]+)'
 
-# Display result in Streamlit app
-st.write("Jumlah siswa yang sudah bekerja:", num_working)
-# Count number of students in each department who answered "perhotelan", "tsm", or "rpl"
-perhotelan_count = df[(df["Jurusan"] == "Perhotelan") & (df["Apakah sudah bekerja"] == "Ya")]["Nama Siswa"].count()
-tsm_count = df[(df["Jurusan"] == "Teknik Sepeda Motor") & (df["Apakah sudah bekerja"] == "Ya")]["Nama Siswa"].count()
-rpl_count = df[(df["Jurusan"] == "Rekayasa Perangkat Lunak") & (df["Apakah sudah bekerja"] == "Ya")]["Nama Siswa"].count()
+    # Replace the found paths with the Flask url_for syntax using the new directory name
+    updated_content = re.sub(pattern, lambda x: "{{ url_for('static', filename='" + new_directory_name + "/" + x.group(2) + "') }}", file_content)
+    return updated_content
 
-# Display result in Streamlit app
-st.write("Jumlah siswa yang sudah bekerja di jurusan perhotelan:", perhotelan_count)
-st.write("Jumlah siswa yang sudah bekerja di jurusan tsm:", tsm_count)
-st.write("Jumlah siswa yang sudah bekerja di jurusan rpl:", rpl_count)
+def main():
+    st.title("Static Reference Updater")
 
-# Count number of students who answered the questionnaire
-num_respondents = df["Nama Siswa"].count()
+    # User input for directory names
+    directory_name = st.text_input("Enter the original directory name for the paths:")
+    new_directory_name = st.text_input("Enter the new path for the directory:")
 
-# Display result in Streamlit app
-st.write("Jumlah siswa yang menjawab kuesioner:", num_respondents)
+    # File uploader
+    uploaded_file = st.file_uploader("Choose a file", type=['html'])
+    if uploaded_file is not None and directory_name and new_directory_name:
+        file_content = uploaded_file.getvalue().decode("utf-8")
+        updated_content = update_static_references(file_content, directory_name, new_directory_name)
 
-# Group data by department and count number of students who answered the questionnaire
-respondents_by_dept = df.groupby("Jurusan")["Nama Siswa"].count()
+        # Get the base name of the uploaded file
+        base_name = os.path.splitext(uploaded_file.name)[0]
 
-# Display result in Streamlit app
-st.write("Jumlah siswa yang menjawab kuesioner per jurusan:")
-st.write(respondents_by_dept)
+        # Display or download
+        st.text_area("Updated File Content", updated_content, height=300)
+        st.download_button("Download Updated File", updated_content, file_name=f"{base_name}_update.html")
 
-# Filter data by students who haven't worked and want to continue studying
-df_filtered = df[df["Apa Kuliah"] == "Ya"]
-
-# Group filtered data by department and count number of students who want to continue studying
-continue_studies_by_dept = df_filtered.groupby("Jurusan")["Nama Siswa"].count()
-
-# Display result in Streamlit app
-st.write("Jumlah siswa yang ingin melanjutkan kuliah per jurusan:")
-st.write(continue_studies_by_dept)
-
-# Group filtered data by department and get list of students who want to continue studying
-continue_studies_by_dept = df_filtered.groupby("Jurusan")["Nama Siswa"].apply(list)
-
-# Display result in Streamlit app
-st.write("Daftar nama siswa yang ingin melanjutkan kuliah per jurusan:")
-st.write(continue_studies_by_dept)
-
-# Filter data by students who haven't worked and want to continue studying
-df_filtered = df[df["Apa Kuliah"] == "Ya"]
-
-# Group filtered data by department and get list of students who want to continue studying
-continue_studies_by_dept = df_filtered.groupby("Jurusan")[["Nama Siswa", "Tempat Kuliah"]].apply(lambda x: x.values.tolist())
-
-# Display result in Streamlit app
-st.write("Daftar nama siswa yang ingin melanjutkan kuliah per jurusan:")
-st.write(continue_studies_by_dept)
-
-# Filter data by students who haven't worked
-df_filtered = df[df["Apa Kuliah"] == "Tidak"]
-
-# Select columns "Nama Siswa" and "Apa Kuliah" from filtered data
-result = df_filtered[["Nama Siswa","Jurusan", "Berikan penjelasan / keterangan"]]
-
-# Display result in Streamlit app
-st.write("Daftar siswa yang tidak kuliah  dan Alasan:")
-st.write(result)
+if __name__ == "__main__":
+    main()
